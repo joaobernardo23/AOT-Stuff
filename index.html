@@ -289,6 +289,12 @@ a{color:var(--gold);}
     font-size:9.5px;
     letter-spacing:-.01em;
   }
+  .ep-date.has-label{
+    width:42px;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
   .ep-rewatch{padding:3px 5px; font-size:9px; gap:2px;}
   .ep-rewatch svg{width:10px; height:10px;}
 }
@@ -1575,7 +1581,7 @@ function episodeRow(ep, libItem){
       <button class="ep-rewatch ${rewatchCount?'has-count':''}" data-ep-rewatch="${sn}:${ep.episode_number}" ${checked?'':'disabled'} title="Log a rewatch">${ic.rewatch}${rewatchCount? '×'+rewatchCount : ''}</button>
       ${rewatchCount ? `<button class="ep-rewatch-undo" data-ep-rewatch-undo="${sn}:${ep.episode_number}" title="Remove one rewatch">−</button>` : ''}
     </div>
-    <span class="ep-date">${dateLbl ?? '&nbsp;'}</span>
+    <span class="ep-date${dateLbl ? ' has-label' : ''}">${dateLbl ?? '&nbsp;'}</span>
   </div>`;
 }
 function bindEpisodeRows(libItem){
