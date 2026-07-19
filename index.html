@@ -71,7 +71,7 @@ a{color:var(--gold);}
 .brand-mark{font-family:var(--font-display); font-size:26px; letter-spacing:1px; color:var(--gold); white-space:nowrap;}
 .brand-mark-sub{font-family:var(--font-body); font-size:13px; font-weight:600; letter-spacing:.01em; color:var(--text-faint); opacity:.55; margin-left:7px; white-space:nowrap;}
 @media(max-width:480px){
-  .brand-mark-sub{display:none;}
+  .brand-mark-sub{font-size:10px; margin-left:5px;}
   .brand-mark{font-size:20px;}
   .topbar-inner{padding:12px 14px;}
 }
@@ -280,15 +280,18 @@ a{color:var(--gold);}
 }
 .episode-row.not-aired .ep-date{color:var(--gold-dim); font-style:italic;}
 @media(max-width:480px){
-  .ep-date{
-    margin-left:8px;
-    font-size:10px;
-  }
-}
-/* @media(max-width:480px){
   .episode-row{gap:6px; padding:9px 10px;}
-  .ep-date{width:auto; font-size:10px;}
-} */
+  .ep-num{width:18px;}
+  .ep-date{
+    width:auto;
+    min-width:0;
+    margin-left:6px;
+    font-size:9.5px;
+    letter-spacing:-.01em;
+  }
+  .ep-rewatch{padding:3px 5px; font-size:9px; gap:2px;}
+  .ep-rewatch svg{width:10px; height:10px;}
+}
 /* .ep-rewatch-wrap{flex:none; display:flex; align-items:center; gap:4px;} */
 .ep-rewatch-wrap{
   margin-left:auto;
@@ -956,8 +959,13 @@ function quickWatchNext(k){
 }
 
 /* ===================== RENDER ROOT ===================== */
-function render(){
+function render(preserveScroll){
   const app = document.getElementById('app');
+  // preserveScroll defaults to true — most render() calls are the result of an
+  // in-place action (toggling a watched episode, logging a rewatch, changing status,
+  // etc.) and the view should stay put rather than jumping back to the top.
+  const shouldPreserve = preserveScroll !== false;
+  const scrollY = shouldPreserve ? window.scrollY : 0;
   if(!state.booted){
     app.innerHTML = `<div class="spinner"></div>`;
     return;
@@ -969,7 +977,7 @@ function render(){
   app.innerHTML = `
     <div class="topbar"><div class="topbar-inner">
       <div class="brand" data-nav="home">
-        <span class="brand-mark">AOT<span class="brand-mark-sub">and other stuff</span></span>
+        <span class="brand-mark">AOT<span class="brand-mark-sub">& stuff</span></span>
       </div>
       <div class="nav">
         <button data-nav="home" class="${state.view==='home'?'active':''}">${ic.home}<span>Home</span></button>
@@ -982,7 +990,22 @@ function render(){
     <div class="content" id="content"></div>
   `;
   bindTopbar();
-  renderContent();
+  const pending = renderContent();
+  if(shouldPreserve) restoreScrollAfter(pending, scrollY);
+}
+// The detail view renders in two steps (a loading spinner, then the real content
+// once TMDB data resolves). That temporary spinner is much shorter than the real
+// page, so the browser clamps the scroll position to the top while it's showing —
+// then never puts it back once the real content loads. Waiting for the render to
+// actually finish (sync or async) before re-applying the saved scroll position
+// fixes that.
+function restoreScrollAfter(pending, y){
+  const doRestore = ()=> window.scrollTo(0, y);
+  if(pending && typeof pending.then === 'function'){
+    pending.then(doRestore).catch(doRestore);
+  } else {
+    requestAnimationFrame(doRestore);
+  }
 }
 
 function bindTopbar(){
@@ -990,7 +1013,7 @@ function bindTopbar(){
     el.addEventListener('click', ()=>{
       state.view = el.getAttribute('data-nav');
       if(state.view!=='detail') state.detailKey = null;
-      render();
+      render(false);
     });
   });
 }
@@ -1000,7 +1023,7 @@ function renderContent(){
   if(state.view==='home') { c.innerHTML = renderHome(); bindHome(); }
   else if(state.view==='search'){ c.innerHTML = renderSearch(); bindSearch(); }
   else if(state.view==='library'){ c.innerHTML = renderLibrary(); bindLibrary(); }
-  else if(state.view==='detail'){ c.innerHTML = renderDetailLoading(); loadDetail(); }
+  else if(state.view==='detail'){ c.innerHTML = renderDetailLoading(); return loadDetail(); }
   else if(state.view==='settings'){ c.innerHTML = renderSettings(); bindSettings(); }
 }
 
@@ -1011,7 +1034,7 @@ function renderContent(){
 function renderOnboard(){
   return `
   <div class="onboard">
-    <span class="brand-mark">AOT<span class="brand-mark-sub">and other stuff</span></span>
+    <span class="brand-mark">AOT<span class="brand-mark-sub">& stuff</span></span>
     <p>This copy of the app doesn't have a TMDB API key set up yet.<br><br>
     Open <code>index.html</code>, find the <code>BUILT_IN_TMDB_KEY</code> line near the top of the <code>&lt;script&gt;</code> section, and paste a free key from
     <a href="https://www.themoviedb.org/settings/api" target="_blank" rel="noopener">themoviedb.org/settings/api</a> in between the quotes. Then re-save/re-host the file and reload this page.</p>
@@ -1318,13 +1341,13 @@ function openDetail(libKey, type, id){
     state.detailKey = keyOf(type, id);
     state.detailData = {type, id: Number(id)};
   }
-  render();
+  render(false);
 }
 function renderDetailLoading(){
   return `<button class="back-btn" id="back-btn">${ic.back} Back</button><div class="spinner"></div>`;
 }
 async function loadDetail(){
-  document.getElementById('back-btn').addEventListener('click', ()=>{ history.length; state.view = state.library[state.detailKey] ? 'library':'search'; render(); });
+  document.getElementById('back-btn').addEventListener('click', ()=>{ history.length; state.view = state.library[state.detailKey] ? 'library':'search'; render(false); });
   const {type, id} = state.detailData;
   const libItem = state.library[state.detailKey];
   try{
@@ -1357,7 +1380,7 @@ async function loadDetail(){
     }
   }catch(e){
     document.getElementById('content').innerHTML = `<button class="back-btn" id="back-btn">${ic.back} Back</button><div class="empty"><strong>Couldn't load details</strong>${e.message==='bad-key'?'Check your TMDB API key in Settings.':'Please try again.'}</div>`;
-    document.getElementById('back-btn').addEventListener('click', ()=>{ state.view='library'; render(); });
+    document.getElementById('back-btn').addEventListener('click', ()=>{ state.view='library'; render(false); });
   }
 }
 function renderTvDetail(d, libItem){
@@ -1430,7 +1453,7 @@ function seasonBlock(s, libItem){
       </div>
       <div class="season-actions">
         <button class="mini-btn" data-mark-season="${s.season_number}" data-count="${airedCount}" data-all="${allWatched?1:0}">${allWatched?'Unmark all':'Mark all watched'}</button>
-        ${allWatched ? `<button class="rewatch-btn ${hasRewatch?'has-count':''}" data-season-rewatch="${s.season_number}" title="Log a rewatch for this whole season">${ic.rewatch} Rewatch</button>` : ''}
+        ${allWatched ? `<button class="rewatch-btn ${hasRewatch?'has-count':''}" data-season-rewatch="${s.season_number}" title="Log a rewatch for this whole season">${ic.rewatch}</button>` : ''}
         ${hasRewatch ? `<button class="rewatch-undo" data-season-rewatch-undo="${s.season_number}" title="Remove one rewatch from this season">−</button>` : ''}
       </div>
     </div>
@@ -1440,7 +1463,7 @@ function seasonBlock(s, libItem){
   </div>`;
 }
 function bindTvDetail(libItem, tmdbData){
-  document.getElementById('back-btn').addEventListener('click', ()=>{ state.view='library'; render(); });
+  document.getElementById('back-btn').addEventListener('click', ()=>{ state.view='library'; render(false); });
   const addBtn = document.getElementById('add-lib-tv');
   if(addBtn) addBtn.addEventListener('click', ()=>{
     const k = addToLibrary({id:tmdbData.id, name:tmdbData.name, poster_path:tmdbData.poster_path}, 'tv', 'plan_to_watch');
@@ -1503,7 +1526,7 @@ function bindTvDetail(libItem, tmdbData){
   if(rm) rm.addEventListener('click', ()=>{
     if(confirm('Remove this title from your library? This deletes your watch progress.')){
       removeFromLibrary(state.detailKey);
-      state.view = 'library'; render();
+      state.view = 'library'; render(false);
     }
   });
 }
@@ -1697,7 +1720,7 @@ function renderMovieDetail(d, libItem){
     </div>
   `;
   document.getElementById('content').innerHTML = html;
-  document.getElementById('back-btn').addEventListener('click', ()=>{ state.view='library'; render(); });
+  document.getElementById('back-btn').addEventListener('click', ()=>{ state.view='library'; render(false); });
   const addBtn = document.getElementById('add-lib-movie');
   if(addBtn) addBtn.addEventListener('click', ()=>{
     const k = addToLibrary({id:d.id, title:d.title, poster_path:d.poster_path}, 'movie', 'plan_to_watch');
@@ -1727,7 +1750,7 @@ function renderMovieDetail(d, libItem){
   if(rm) rm.addEventListener('click', ()=>{
     if(confirm('Remove this title from your library?')){
       removeFromLibrary(state.detailKey);
-      state.view='library'; render();
+      state.view='library'; render(false);
     }
   });
 }
