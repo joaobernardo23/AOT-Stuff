@@ -13,8 +13,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="AOT&Stuff">
-<link rel="apple-touch-icon" href="aot_logo.png">
-<link rel="icon" href="aot_logo.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" href="icon-192.png">
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Anton&family=Libre+Franklin:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
 
@@ -67,9 +67,14 @@ a{color:var(--gold);}
   max-width:1120px; margin:0 auto; padding:14px 20px;
   display:flex; align-items:center; justify-content:space-between; gap:16px;
 }
-.brand{display:flex; align-items:baseline; gap:8px; cursor:pointer;}
-.brand-mark{font-family:var(--font-display); font-size:26px; letter-spacing:1px; color:var(--gold);}
-.brand-mark-sub{font-family:var(--font-body); font-size:13px; font-weight:600; letter-spacing:.01em; color:var(--text-faint); opacity:.55; margin-left:7px;}
+.brand{display:flex; align-items:baseline; gap:8px; cursor:pointer; white-space:nowrap; min-width:0;}
+.brand-mark{font-family:var(--font-display); font-size:26px; letter-spacing:1px; color:var(--gold); white-space:nowrap;}
+.brand-mark-sub{font-family:var(--font-body); font-size:13px; font-weight:600; letter-spacing:.01em; color:var(--text-faint); opacity:.55; margin-left:7px; white-space:nowrap;}
+@media(max-width:480px){
+  .brand-mark-sub{display:none;}
+  .brand-mark{font-size:20px;}
+  .topbar-inner{padding:12px 14px;}
+}
 
 .nav{display:flex; gap:4px; background:var(--surface); padding:4px; border-radius:999px; border:1px solid var(--line);}
 .nav button{
@@ -265,12 +270,29 @@ a{color:var(--gold);}
 .ep-check.checked svg{display:block;}
 .ep-check[disabled]{opacity:.25; pointer-events:none;}
 .ep-num{font-family:var(--font-mono); color:var(--text-faint); width:26px; flex:none;}
-.ep-name{flex:1; color:var(--text-dim); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.ep-name{flex:1; min-width:0; color:var(--text-dim); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
 .episode-row.not-aired .ep-name{color:var(--text-faint);}
-.ep-runtime-debug{font-family:var(--font-mono); color:var(--blue); font-size:10px; flex:none; background:var(--surface-2); border:1px solid var(--line); border-radius:5px; padding:2px 6px;}
-.ep-date{font-family:var(--font-mono); color:var(--text-faint); font-size:11px; flex:none; width:84px; text-align:right;}
+/* .ep-date{font-family:var(--font-mono); color:var(--text-faint); font-size:11px; flex:none; width:84px; text-align:right;} */
+.ep-date{
+    width:56px;
+    flex:none;
+    text-align:right;
+}
 .episode-row.not-aired .ep-date{color:var(--gold-dim); font-style:italic;}
-.ep-rewatch-wrap{flex:none; display:flex; align-items:center; gap:4px;}
+@media(max-width:480px){
+  .ep-date{
+    margin-left:8px;
+    font-size:10px;
+  }
+}
+/* @media(max-width:480px){
+  .episode-row{gap:6px; padding:9px 10px;}
+  .ep-date{width:auto; font-size:10px;}
+} */
+/* .ep-rewatch-wrap{flex:none; display:flex; align-items:center; gap:4px;} */
+.ep-rewatch-wrap{
+  margin-left:auto;
+}
 .ep-rewatch{
   flex:none; display:flex; align-items:center; gap:4px; background:none; border:1px solid var(--line);
   color:var(--text-faint); border-radius:6px; padding:3px 7px; font-size:10px; font-weight:700;
@@ -1516,29 +1538,21 @@ function episodeRow(ep, libItem){
   const lockedOut = !aired && !checked; // can't mark a not-yet-aired episode watched
   let dateLbl;
   if(!ep.air_date){ dateLbl = 'TBA'; }
-  else if(aired){ dateLbl = ep.air_date; }
+  else if(aired){ dateLbl = null; }
   else{
     const d = daysUntil(ep.air_date);
-    dateLbl = d===0 ? 'today' : d===1 ? 'tomorrow' : `in ${d}d`;
+    dateLbl = d===0 ? 'Today' : d===1 ? 'Tomorrow' : `in ${d}d`;
   }
-  // DEBUG: shows which runtime value/source is actually being used for this episode's
-  // time-watched math. Safe to delete this block (and its .ep-runtime-debug CSS rule)
-  // once you're done debugging.
-  const usedRuntime = getEpisodeRuntime(libItem, sn, ep.episode_number);
-  const hasOwnRuntime = typeof ep.runtime === 'number' && ep.runtime > 0;
-  const runtimeSrc = usedRuntime===null ? 'none' : (hasOwnRuntime ? 'ep' : 'series');
-  const runtimeDebug = `<span class="ep-runtime-debug" title="Runtime source: ${runtimeSrc}">${usedRuntime!==null ? usedRuntime+'m ('+runtimeSrc+')' : 'no runtime'}</span>`;
   return `
   <div class="episode-row ${lockedOut?'not-aired':''}" data-ep-open="${sn}:${ep.episode_number}">
     <button class="ep-check ${checked?'checked':''}" data-ep-toggle="${sn}:${ep.episode_number}" ${lockedOut?'disabled title="Hasn\'t aired yet"':''}>${ic.check}</button>
     <span class="ep-num">${ep.episode_number}</span>
     <span class="ep-name">${escapeHtml(ep.name||'Episode '+ep.episode_number)}</span>
-    ${runtimeDebug}
     <div class="ep-rewatch-wrap">
       <button class="ep-rewatch ${rewatchCount?'has-count':''}" data-ep-rewatch="${sn}:${ep.episode_number}" ${checked?'':'disabled'} title="Log a rewatch">${ic.rewatch}${rewatchCount? '×'+rewatchCount : ''}</button>
       ${rewatchCount ? `<button class="ep-rewatch-undo" data-ep-rewatch-undo="${sn}:${ep.episode_number}" title="Remove one rewatch">−</button>` : ''}
     </div>
-    <span class="ep-date">${dateLbl}</span>
+    <span class="ep-date">${dateLbl ?? '&nbsp;'}</span>
   </div>`;
 }
 function bindEpisodeRows(libItem){
@@ -1722,7 +1736,12 @@ function renderMovieDetail(d, libItem){
 function renderSettings(){
   return `
     <h1 class="view-title">Settings</h1>
-    <p class="view-sub">Currently there is no sofisticated storage. Your data is stored in your local browser. Make sure to backup your data below, specially before phone updates.</p>
+    <p class="view-sub">Your key and your data — nothing leaves this device except calls to TMDB</p>
+
+    <div class="settings-card">
+      <h3>API Keys</h3>
+      <p>This app uses a shared set of API keys built into the app itself, so there's nothing to paste in here. If a key ever needs to change, it's edited directly in <code>index.html</code> (the <code>BUILT_IN_TMDB_KEY</code> / <code>BUILT_IN_OMDB_KEY</code> lines near the top of the <code>&lt;script&gt;</code> section) by whoever hosts this app.</p>
+    </div>
 
     <div class="settings-card">
       <h3>Export your library</h3>
@@ -1745,7 +1764,7 @@ function bindSettings(){
     const blob = new Blob([JSON.stringify(state.library, null, 2)], {type:'application/json'});
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url; a.download = 'aot_and_stuff.json'; a.click();
+    a.href = url; a.download = 'stubs-library.json'; a.click();
     URL.revokeObjectURL(url);
   });
   document.getElementById('import-input').addEventListener('change', (e)=>{
