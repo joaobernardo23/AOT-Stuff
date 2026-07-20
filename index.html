@@ -62,6 +62,7 @@ a{color:var(--gold);}
   position:sticky; top:0; z-index:40;
   background:rgba(20,19,26,0.92); backdrop-filter:blur(8px);
   border-bottom:1px solid var(--line);
+  padding-top:env(safe-area-inset-top);
 }
 .topbar-inner{
   max-width:1120px; margin:0 auto; padding:14px 20px;
@@ -290,9 +291,9 @@ a{color:var(--gold);}
     letter-spacing:-.01em;
   }
   .ep-date.has-label{
-    width:42px;
-    overflow:hidden;
-    text-overflow:ellipsis;
+    width:48px;
+    overflow:visible;
+    text-overflow:clip;
     white-space:nowrap;
   }
   .ep-rewatch{padding:3px 5px; font-size:9px; gap:2px;}
