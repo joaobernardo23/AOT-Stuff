@@ -1601,7 +1601,6 @@ function bindEpisodeRows(libItem){
     el.addEventListener('click', ()=>{
       const [sn,en] = el.getAttribute('data-ep-toggle').split(':').map(Number);
       toggleEpisode(state.detailKey, sn, en);
-      loadDetail();
     });
   });
   document.querySelectorAll('[data-ep-rewatch]').forEach(el=>{
@@ -1609,7 +1608,6 @@ function bindEpisodeRows(libItem){
       const [sn,en] = el.getAttribute('data-ep-rewatch').split(':').map(Number);
       logEpisodeRewatch(state.detailKey, sn, en);
       toast('Rewatch logged');
-      loadDetail();
     });
   });
   document.querySelectorAll('[data-ep-rewatch-undo]').forEach(el=>{
@@ -1617,7 +1615,6 @@ function bindEpisodeRows(libItem){
       const [sn,en] = el.getAttribute('data-ep-rewatch-undo').split(':').map(Number);
       unlogEpisodeRewatch(state.detailKey, sn, en);
       toast('Removed one rewatch');
-      loadDetail();
     });
   });
 }
@@ -1749,13 +1746,13 @@ function renderMovieDetail(d, libItem){
     saveLibrary(); loadDetail();
   });
   const rwBtn = document.getElementById('movie-rewatch-btn');
-  if(rwBtn) rwBtn.addEventListener('click', ()=>{ logMovieRewatch(state.detailKey); toast('Rewatch logged'); loadDetail(); });
+  if(rwBtn) rwBtn.addEventListener('click', ()=>{ logMovieRewatch(state.detailKey); toast('Rewatch logged'); });
   const rwUndoBtn = document.getElementById('movie-rewatch-undo');
-  if(rwUndoBtn) rwUndoBtn.addEventListener('click', ()=>{ unlogMovieRewatch(state.detailKey); toast('Removed one rewatch'); loadDetail(); });
+  if(rwUndoBtn) rwUndoBtn.addEventListener('click', ()=>{ unlogMovieRewatch(state.detailKey); toast('Removed one rewatch'); });
   const mrInput = document.getElementById('movie-runtime');
-  if(mrInput) mrInput.addEventListener('change', ()=>{ setMovieRuntime(state.detailKey, mrInput.value); loadDetail(); });
+  if(mrInput) mrInput.addEventListener('change', ()=>{ setMovieRuntime(state.detailKey, mrInput.value); });
   document.querySelectorAll('[data-punch]').forEach(el=>{
-    el.addEventListener('click', ()=>{ setRating(state.detailKey, Number(el.getAttribute('data-punch'))); loadDetail(); });
+    el.addEventListener('click', ()=>{ setRating(state.detailKey, Number(el.getAttribute('data-punch'))); });
   });
   const rm = document.getElementById('remove-item');
   if(rm) rm.addEventListener('click', ()=>{
