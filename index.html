@@ -1084,7 +1084,7 @@ function renderHome(){
     </div>
 
     <div class="section">
-      <div class="section-head"><h2>Series Log</h2></div>
+      <div class="section-head"><h2>Series Stats</h2></div>
       <div class="stats">
         <div class="stat"><div class="num">${totalEpWatched}</div><div class="lbl">Episodes watched</div></div>
         <div class="stat"><div class="num">${fmtHours(seriesMinutes)}</div><div class="lbl">Time watched</div></div>
@@ -1093,7 +1093,7 @@ function renderHome(){
     </div>
 
     <div class="section">
-      <div class="section-head"><h2>Movies Log</h2></div>
+      <div class="section-head"><h2>Movies Stats</h2></div>
       <div class="stats">
         <div class="stat"><div class="num">${moviesWatched}</div><div class="lbl">Movies watched</div></div>
         <div class="stat"><div class="num">${fmtHours(movieMinutes)}</div><div class="lbl">Time watched</div></div>
@@ -1186,7 +1186,7 @@ function renderSearch(){
   `;
 }
 function renderSearchResults(){
-  if(!state.searchQuery) return `<div class="empty"><strong>Start typing to search</strong>Results come straight from TMDB.</div>`;
+  if(!state.searchQuery) return `<div class="empty"><strong>Start typing to search</strong></div>`;
   if(!state.searchResults.length) return `<div class="empty"><strong>No results</strong>Try a different title.</div>`;
   return `<div class="grid">${state.searchResults.map(r=>searchCard(r)).join('')}</div>`;
 }
@@ -1283,7 +1283,7 @@ function renderLibrary(){
 
   return `
     <h1 class="view-title">Library</h1>
-    <p class="view-sub">Two separate logs — shows and movies don't mix</p>
+    <p class="view-sub">Shows and Movies don't mix</p>
     <div class="tabs">
       <button data-media="tv" class="${mediaType==='tv'?'active':''}">TV Shows</button>
       <button data-media="movie" class="${mediaType==='movie'?'active':''}">Movies</button>
@@ -1766,12 +1766,7 @@ function renderMovieDetail(d, libItem){
 function renderSettings(){
   return `
     <h1 class="view-title">Settings</h1>
-    <p class="view-sub">Your key and your data — nothing leaves this device except calls to TMDB</p>
-
-    <div class="settings-card">
-      <h3>API Keys</h3>
-      <p>This app uses a shared set of API keys built into the app itself, so there's nothing to paste in here. If a key ever needs to change, it's edited directly in <code>index.html</code> (the <code>BUILT_IN_TMDB_KEY</code> / <code>BUILT_IN_OMDB_KEY</code> lines near the top of the <code>&lt;script&gt;</code> section) by whoever hosts this app.</p>
-    </div>
+    <p class="view-sub">Your data is stored in your local browser. It is thus recommended to frequently back it up below, specially before removing cache or updates.</p>
 
     <div class="settings-card">
       <h3>Export your library</h3>
