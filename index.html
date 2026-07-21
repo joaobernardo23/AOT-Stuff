@@ -722,7 +722,11 @@ function fmtHours(mins){
   const h = Math.floor(mins/60);
   if(h < 24) return `${h}h`;
   const d = Math.floor(h/24);
-  return `${d}d ${h%24}h`;
+  if (d < 30) return `${d}d ${h%24}h`;
+  const m = Math.floor(d/30);
+  if (m<12) return `${m}m ${d%30}d ${h%24}h`
+  const y = Math.floor(m/12)
+  return `${y}y ${m%12}m ${d%30}d ${h%24}h`
 }
 
 function daysUntil(dateStr){
