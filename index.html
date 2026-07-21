@@ -248,11 +248,11 @@ a{color:var(--gold);}
 .season{border:1px solid var(--line); border-radius:var(--radius); margin-bottom:10px; overflow:hidden; background:var(--surface);}
 .season-head{display:flex; align-items:center; justify-content:space-between; padding:12px 14px; cursor:pointer;}
 .season-head:hover{background:var(--surface-2);}
-.season-head-left{width:200px; display:flex; align-items:center; gap:10px;}
-.season-head h3{font-size:13px; margin:0; font-weight:700;}
-.season-progress-mini{font-family:var(--font-mono); font-size:11px; color:var(--text-faint);}
+.season-head-left{width:148px; display:flex; align-items:center; gap:10px; min-width:0;}
+.season-head h3{font-size:13px; margin:0 2px 0 0; font-weight:700; min-width:0; flex:1;}
+.season-progress-mini{font-family:var(--font-mono); font-size:10px; color:var(--text-faint);}
 .season-actions{display:flex; gap:6px; align-items:center;}
-.mini-btn{background:var(--surface-3); border:1px solid var(--line); color:var(--text-dim); font-size:11px; padding:4px 8px; border-radius:6px; font-weight:600; display:inline-flex; align-items:center; gap:4px;}
+.mini-btn{background:var(--surface-3); border:1px solid var(--line); color:var(--text-dim); font-size:10px; padding:4px 8px; border-radius:6px; font-weight:600; display:inline-flex; align-items:center; gap:4px;}
 .mini-btn:hover{color:var(--text);}
 .mini-btn svg{width:12px; height:12px; flex:none;}
 .chevron{flex: 0 0 auto; width:14px; height:14px; transition:transform .15s; color:var(--text-faint);}
@@ -334,14 +334,14 @@ a{color:var(--gold);}
 .big-toggle.on{background:var(--teal); border-color:var(--teal); color:#0d1f1d;}
 .rewatch-btn{
   background:var(--surface); border:1px solid var(--line); color:var(--text-dim); font-weight:700; font-size:12px;
-  padding:8px 13px; border-radius:8px; display:inline-flex; align-items:center; gap:6px;
+  padding:6px 11px; border-radius:8px; display:inline-flex; align-items:center; gap:6px;
 }
-.rewatch-btn svg{width:13px; height:13px; flex:none;}
+.rewatch-btn svg{width:10px; height:10px; flex:none;}
 .rewatch-btn:hover{color:var(--gold); border-color:var(--gold-dim);}
 .rewatch-btn.has-count{color:var(--gold); border-color:var(--gold-dim);}
 .rewatch-undo{
   background:none; border:1px solid var(--line); color:var(--text-faint); border-radius:8px;
-  width:28px; height:28px; font-size:15px; font-weight:800; line-height:1; flex:none;
+  width:20px; height:20px; font-size:11px; font-weight:800; line-height:1; flex:none;
 }
 .rewatch-undo:hover{color:var(--text); border-color:var(--gold-dim);}
 
