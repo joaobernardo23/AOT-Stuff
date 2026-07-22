@@ -1547,7 +1547,7 @@ async function loadSeasonEpisodes(sn, showId, libItem){
   const cached = libItem.episodesMeta && libItem.episodesMeta[sn];
   if(cached && cached.length){
     wrap.innerHTML = cached.map(ep=>episodeRow({...ep, season_number:Number(sn)}, libItem)).join('');
-    bindEpisodeRows(libItem);
+    bindEpisodeRows(libItem, wrap);
     return;
   }
   wrap.innerHTML = '<div class="spinner" style="margin:16px auto;"></div>';
@@ -1558,7 +1558,7 @@ async function loadSeasonEpisodes(sn, showId, libItem){
     resolveEpisodeRuntimeSource(libItem, {episode_run_time: libItem.episodeRuntimeSource==='tmdb' ? [libItem.episodeRuntime] : []});
     saveLibrary();
     wrap.innerHTML = libItem.episodesMeta[sn].map(ep=>episodeRow({...ep, season_number:Number(sn)}, libItem)).join('');
-    bindEpisodeRows(libItem);
+    bindEpisodeRows(libItem, wrap);
   }catch(e){
     wrap.innerHTML = `<div class="empty">Couldn't load episodes.</div>`;
   }
@@ -1589,28 +1589,37 @@ function episodeRow(ep, libItem){
     <span class="ep-date${dateLbl ? ' has-label' : ''}">${dateLbl ?? '&nbsp;'}</span>
   </div>`;
 }
-function bindEpisodeRows(libItem){
-  document.querySelectorAll('[data-ep-open]').forEach(el=>{
+function bindEpisodeRows(libItem, scope){
+  // Scoped to just this season's episode list — previously this used
+  // document.querySelectorAll, which (since every currently-open season gets
+  // reloaded and re-bound on every single render) re-attached a fresh set of
+  // listeners to EVERY open season's rows each time, not just the season being
+  // loaded. Seasons earlier in the list accumulated more and more duplicate
+  // listeners the more seasons were open, so a single click could fire
+  // toggleEpisode() several times in a row (canceling itself out and causing
+  // repeated re-renders that yanked the scroll position around).
+  const root = scope || document;
+  root.querySelectorAll('[data-ep-open]').forEach(el=>{
     el.addEventListener('click', (e)=>{
       if(e.target.closest('button')) return;
       const [sn,en] = el.getAttribute('data-ep-open').split(':');
       openEpisodeModal(sn, en);
     });
   });
-  document.querySelectorAll('[data-ep-toggle]').forEach(el=>{
+  root.querySelectorAll('[data-ep-toggle]').forEach(el=>{
     el.addEventListener('click', ()=>{
       const [sn,en] = el.getAttribute('data-ep-toggle').split(':').map(Number);
       toggleEpisode(state.detailKey, sn, en);
     });
   });
-  document.querySelectorAll('[data-ep-rewatch]').forEach(el=>{
+  root.querySelectorAll('[data-ep-rewatch]').forEach(el=>{
     el.addEventListener('click', ()=>{
       const [sn,en] = el.getAttribute('data-ep-rewatch').split(':').map(Number);
       logEpisodeRewatch(state.detailKey, sn, en);
       toast('Rewatch logged');
     });
   });
-  document.querySelectorAll('[data-ep-rewatch-undo]').forEach(el=>{
+  root.querySelectorAll('[data-ep-rewatch-undo]').forEach(el=>{
     el.addEventListener('click', ()=>{
       const [sn,en] = el.getAttribute('data-ep-rewatch-undo').split(':').map(Number);
       unlogEpisodeRewatch(state.detailKey, sn, en);
@@ -1790,7 +1799,7 @@ function bindSettings(){
     const blob = new Blob([JSON.stringify(state.library, null, 2)], {type:'application/json'});
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url; a.download = 'stubs-library.json'; a.click();
+    a.href = url; a.download = 'aot_and_stuff_lib.json'; a.click();
     URL.revokeObjectURL(url);
   });
   document.getElementById('import-input').addEventListener('change', (e)=>{
