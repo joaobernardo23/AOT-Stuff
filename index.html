@@ -298,6 +298,11 @@ a{color:var(--gold);}
   }
   .ep-rewatch{padding:3px 5px; font-size:9px; gap:2px;}
   .ep-rewatch svg{width:10px; height:10px;}
+  .modal-body .punchcard-label{font-size:9px;}
+  .modal-body .punch{
+    width:14px; height:14px;
+  }
+  .modal-body .punch-num{font-size:9px;}
 }
 /* .ep-rewatch-wrap{flex:none; display:flex; align-items:center; gap:4px;} */
 .ep-rewatch-wrap{
@@ -501,6 +506,9 @@ async function loadState(){
   try{
     const l = await storageGet('library');
     if(l) state.library = JSON.parse(l);
+    Object.values(state.library).forEach(it=>{
+      it.episodeRatings = it.episodeRatings || {};
+    });
   }catch(e){ /* no library yet */ }
   state.booted = true;
 }
@@ -800,6 +808,7 @@ function addToLibrary(tmdbItem, type, initialStatus){
   if(type==='tv'){
     item.watched = {};
     item.rewatches = {};       // { seasonNumber: { episodeNumber: extraWatchCount } }
+    item.episodeRatings = {}
     item.seasonsMeta = [];
     item.episodeRuntime = null;
     item.episodeRuntimeSource = null;   // 'tmdb' | 'manual' | null (not resolved yet)
@@ -831,6 +840,13 @@ function setRating(k, val){
   const it = state.library[k]; if(!it) return;
   it.rating = (it.rating === val) ? null : val;
   saveLibrary(); render();
+}
+
+function setEpisodeRating(k, sn, en, val){
+  const it = state.library[k]; if(!it) return;
+  it.episodeRatings[sn] = it.episodeRatings[sn] || {};
+  it.episodeRatings[sn][en] = (it.episodeRatings[sn][en] === val) ? null : val;
+  saveLibrary(); renderEpisodeModal();
 }
 // Keeps a show's status honest as episodes get checked off:
 //  - nothing watched            -> back to Plan to Watch
@@ -1673,6 +1689,8 @@ function renderEpisodeModal(){
     ratingHtml = `<span>TMDB ★ ${ep.vote_average.toFixed(1)}</span>`;
   }
 
+  const epRating = (libItem.episodeRatings[sn] && libItem.episodeRatings[sn][en]) || null;
+
   const existing = document.getElementById('episode-modal-overlay');
   if(existing) existing.remove();
 
@@ -1691,7 +1709,12 @@ function renderEpisodeModal(){
         <div class="modal-meta">
           ${ep.air_date ? `<span>${ep.air_date}</span>` : `<span>TBA</span>`}
           ${runtime ? `<span>${runtime} min</span>` : ''}
-          ${ratingHtml}
+          ${ratingHtml}  
+        </div>
+        <div class="punchcard">
+          <span class="punchcard-label">Rating</span>
+          <div class="punch-row">${Array.from({length:10},(_,i)=>`<button class="punch ${epRating>i?'on':''}" data-punch="${i+1}"></button>`).join('')}</div>
+          <span class="punch-num">${epRating? epRating+'/10':'—'}</span>
         </div>
         <p class="modal-overview">${escapeHtml(ep.overview || 'No description available.')}</p>
       </div>
@@ -1699,6 +1722,9 @@ function renderEpisodeModal(){
   document.body.appendChild(overlay);
   overlay.addEventListener('click', (e)=>{ if(e.target===overlay) closeEpisodeModal(); });
   document.getElementById('modal-close-btn').addEventListener('click', closeEpisodeModal);
+  overlay.querySelectorAll('[data-punch]').forEach(el=>{
+    el.addEventListener('click', ()=>setEpisodeRating(state.detailKey, sn, en, Number(el.getAttribute('data-punch'))));
+  });
 }
 document.addEventListener('keydown', (e)=>{ if(e.key==='Escape') closeEpisodeModal(); });
 
@@ -1810,6 +1836,9 @@ function bindSettings(){
       try{
         const data = JSON.parse(reader.result);
         state.library = {...state.library, ...data};
+        Object.values(state.library).forEach(it=>{
+          it.episodeRatings = it.episodeRatings || {};
+        });
         await saveLibrary();
         toast('Library imported');
         render();
