@@ -200,6 +200,22 @@ a{color:var(--gold);}
   background:var(--gold); color:#1a1509; border:none; font-weight:800; font-size:16px;
   display:flex; align-items:center; justify-content:center; box-shadow:0 2px 6px rgba(0,0,0,.4);
 }
+.fav-btn-card{
+    position:absolute; bottom:6px; left:6px; width:26px; height:26px; border-radius:50%;
+      background:var(--surface-2); color:var(--text); border:none; font-weight:800; font-size:16px;
+        display:flex; align-items:center; justify-content:center; box-shadow:0 2px 6px rgba(0,0,0,.4);
+}
+
+.favorited svg{fill: crimson; stroke: crimson;}
+
+.fav-btn-inline{
+  width:26px; height:26px; border-radius:50%; border:none;
+  background:var(--surface-2); color:var(--text);
+  display:flex; align-items:center; justify-content:center;
+  cursor:pointer; flex:none;
+}
+.fav-btn-inline.favorited svg{fill: crimson; stroke: crimson;}
+.fav-btn-inline svg{width:14px; height:14px; flex:none;}
 
 /* ---------- search bar ---------- */
 .searchbar{
@@ -446,6 +462,7 @@ const ic = {
   check: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>`,
   chevron: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>`,
   back: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>`,
+  favorites: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 000-7.78z"/></svg>`,
   rewatch: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0115-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 01-15 6.7L3 16"/><path d="M3 21v-5h5"/></svg>`,
 };
 
@@ -458,6 +475,7 @@ let state = {
   detailData: null,      // live tmdb data for current detail (merged with library item if present)
   libraryFilter: 'all',
   libraryMediaType: 'tv',
+  favoritesMediaType:'tv',
   searchQuery: '',
   searchResults: [],
   openSeasons: {},        // season_number -> bool (for current detail view)
@@ -804,6 +822,7 @@ function addToLibrary(tmdbItem, type, initialStatus){
     addedAt: Date.now(),
     status: initialStatus,
     rating: null,
+    favorite: false,
   };
   if(type==='tv'){
     item.watched = {};
@@ -834,6 +853,11 @@ function setStatus(k, status){
   const it = state.library[k]; if(!it) return;
   it.status = status;
   if(it.type==='movie' && status==='completed' && !it.watchedAt) it.watchedAt = Date.now();
+  saveLibrary(); render();
+}
+function toggleFavorite(k){
+  const it = state.library[k]; if(!it) return;
+  it.favorite = !it.favorite;
   saveLibrary(); render();
 }
 function setRating(k, val){
@@ -1010,6 +1034,7 @@ function render(preserveScroll){
         <button data-nav="home" class="${state.view==='home'?'active':''}">${ic.home}<span>Home</span></button>
         <button data-nav="search" class="${state.view==='search'?'active':''}">${ic.search}<span>Search</span></button>
         <button data-nav="library" class="${state.view==='library'?'active':''}">${ic.library}<span>Library</span></button>
+        <button data-nav="favorites" class="${state.view==='favorites'?'active':''}">${ic.favorites}<span>Favorites</span></button>
         <button data-nav="settings" class="${state.view==='settings'?'active':''}">${ic.settings}<span>Settings</span></button>
       </div>
     </div></div>
@@ -1052,6 +1077,7 @@ function renderContent(){
   else if(state.view==='library'){ c.innerHTML = renderLibrary(); bindLibrary(); }
   else if(state.view==='detail'){ c.innerHTML = renderDetailLoading(); return loadDetail(); }
   else if(state.view==='settings'){ c.innerHTML = renderSettings(); bindSettings(); }
+  else if(state.view==='favorites'){c.innerHTML = renderFavorites(); bindLibrary()}
 }
 
 /* ===================== ONBOARD ===================== */
@@ -1324,6 +1350,26 @@ function renderLibrary(){
       : `<div class="empty"><strong>Nothing here yet</strong>${mediaType==='tv'?'Shows':'Movies'} you add will show up in this list.</div>`}
   `;
 }
+function renderFavorites(){
+  const mediaType = state.favoritesMediaType || 'tv';
+  const tvCount = Object.values(state.library).filter(it=>it.type==='tv' && it.favorite===true).length;
+  const movieCount = Object.values(state.library).filter(it=>it.type==='movie' && it.favorite===true).length;
+
+  let items = Object.entries(state.library).filter(([k,it])=>it.type===mediaType);
+  items = items.filter(([k,it])=>it.favorite===true);
+  items.sort((a,b)=>(b[1].addedAt||0)-(a[1].addedAt||0));
+
+  return `
+    <h1 class="view-title">Favorites</h1>
+    <p class="view-sub">Your favorite shows and movies</p>
+    <div class="tabs">
+      <button data-media="tv" class="${mediaType==='tv'?'active':''}">TV Shows (${tvCount})</button>
+      <button data-media="movie" class="${mediaType==='movie'?'active':''}">Movies (${movieCount})</button>
+    </div>
+    ${items.length ? `<div class="grid">${items.map(([k,it])=>libraryCard(k,it)).join('')}</div>`
+      : `<div class="empty"><strong>Nothing here yet</strong>${mediaType==='tv'?'Shows':'Movies'} you favorite will show up in this list.</div>`}
+  `;
+}
 function libraryCard(k, it){
   let sub = libStatusLabel(it.status);
   let pct = null;
@@ -1337,6 +1383,7 @@ function libraryCard(k, it){
   <div class="gcard" data-open="${k}">
     <div class="gcard-poster" style="background-image:url('${IMG(it.poster_path,'w185')}')">
       ${pct!==null ? `<div class="gcard-bar" style="position:absolute;bottom:0;left:0;right:0;"><i style="width:${pct}%"></i></div>` : ''}
+      <button data-favorite="${k}" class="fav-btn-card ${it.favorite===true?'favorited':'not_favorited'}">${ic.favorites}</button>
     </div>
     <div class="gcard-title">${escapeHtml(it.title)}</div>
     <div class="gcard-sub">${sub}</div>
@@ -1344,12 +1391,21 @@ function libraryCard(k, it){
 }
 function bindLibrary(){
   document.querySelectorAll('[data-media]').forEach(el=>{
-    el.addEventListener('click', ()=>{
-      state.libraryMediaType = el.getAttribute('data-media');
-      state.libraryFilter = 'all';
+    el.addEventListener('click', (e)=>{
+      if(state.view==="library"){ 
+        state.libraryMediaType = el.getAttribute('data-media');
+        state.libraryFilter = 'all';
+      }
+      if(state.view==="favorites") state.favoritesMediaType = el.getAttribute('data-media');
       renderContent();
     });
   });
+  document.querySelectorAll('[data-favorite]').forEach(el=>{
+    el.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      toggleFavorite(el.getAttribute('data-favorite'))
+    })
+  })
   document.querySelectorAll('[data-filter]').forEach(el=>{
     el.addEventListener('click', ()=>{ state.libraryFilter = el.getAttribute('data-filter'); renderContent(); });
   });
@@ -1435,6 +1491,7 @@ function renderTvDetail(d, libItem){
           <span class="punchcard-label">Rating</span>
           <div class="punch-row">${Array.from({length:10},(_,i)=>`<button class="punch ${libItem.rating>i?'on':''}" data-punch="${i+1}"></button>`).join('')}</div>
           <span class="punch-num">${libItem.rating? libItem.rating+'/10':'—'}</span>
+          <button data-favorite="${state.detailKey}" class="fav-btn-inline ${libItem.favorite?'favorited':''}">${ic.favorites}</button>
         </div>
         <div class="overall-progress">
           <div class="bar"><i style="width:${prog.pct}%"></i></div>
@@ -1504,6 +1561,12 @@ function bindTvDetail(libItem, tmdbData){
   });
   document.querySelectorAll('[data-status]').forEach(el=>{
     el.addEventListener('click', ()=>setStatus(state.detailKey, el.getAttribute('data-status')));
+  });
+  document.querySelectorAll('[data-favorite]').forEach(el=>{
+    el.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      toggleFavorite(el.getAttribute('data-favorite'));
+    });
   });
   document.querySelectorAll('[data-punch]').forEach(el=>{
     el.addEventListener('click', ()=>setRating(state.detailKey, Number(el.getAttribute('data-punch'))));
@@ -1756,6 +1819,7 @@ function renderMovieDetail(d, libItem){
           <span class="punchcard-label">Rating</span>
           <div class="punch-row">${Array.from({length:10},(_,i)=>`<button class="punch ${libItem.rating>i?'on':''}" data-punch="${i+1}"></button>`).join('')}</div>
           <span class="punch-num">${libItem.rating? libItem.rating+'/10':'—'}</span>
+          <button data-favorite="${state.detailKey}" class="fav-btn-inline ${libItem.favorite?'favorited':''}">${ic.favorites}</button>
         </div>
         <button class="remove-link" id="remove-item">Remove from library</button>
         ` : `<div class="status-row"><button class="btn" id="add-lib-movie">+ Add to Library</button></div>`}
@@ -1788,6 +1852,12 @@ function renderMovieDetail(d, libItem){
   if(mrInput) mrInput.addEventListener('change', ()=>{ setMovieRuntime(state.detailKey, mrInput.value); });
   document.querySelectorAll('[data-punch]').forEach(el=>{
     el.addEventListener('click', ()=>{ setRating(state.detailKey, Number(el.getAttribute('data-punch'))); });
+  });
+  document.querySelectorAll('[data-favorite]').forEach(el=>{
+    el.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      toggleFavorite(el.getAttribute('data-favorite'));
+    });
   });
   const rm = document.getElementById('remove-item');
   if(rm) rm.addEventListener('click', ()=>{
