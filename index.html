@@ -394,6 +394,26 @@ a{color:var(--gold);}
 .modal-meta .rating-loading{font-style:italic; opacity:.7;}
 .modal-overview{font-size:13px; color:var(--text-dim); line-height:1.6; margin:0;}
 
+.spoiler-wrap{
+  position: relative;
+  min-height: 88px;
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.spoiler-overlay{
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  text-align: center; gap: 6px; padding: 12px;
+  cursor: pointer;
+  background: rgba(0,0,0,0.55);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  font-size: 13px; color: var(--text-dim);
+}
+.spoiler-overlay svg{ width:20px; height:20px; flex:none; }
+.spoiler-overlay .spoiler-sub{ font-size:11px; opacity:.75; }
+
 /* ---------- settings ---------- */
 .field{margin-bottom:16px;}
 .field label{display:block; font-size:12px; font-weight:700; color:var(--text-dim); margin-bottom:6px; text-transform:uppercase; letter-spacing:.04em;}
@@ -463,12 +483,13 @@ const ic = {
   chevron: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>`,
   back: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>`,
   favorites: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 000-7.78z"/></svg>`,
+  spoiler: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.94 10.94 0 0112 20c-7 0-11-8-11-8a18.5 18.5 0 015.06-5.94M9.9 4.24A10.94 10.94 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19M14.12 14.12a3 3 0 11-4.24-4.24"/><path d="M1 1l22 22"/></svg>`,
   rewatch: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0115-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 01-15 6.7L3 16"/><path d="M3 21v-5h5"/></svg>`,
 };
 
 /* ===================== STATE ===================== */
 let state = {
-  settings: { tmdbKey: BUILT_IN_TMDB_KEY, omdbKey: BUILT_IN_OMDB_KEY },
+  settings: { tmdbKey: BUILT_IN_TMDB_KEY, omdbKey: BUILT_IN_OMDB_KEY, spoilerWarning: true },
   library: {},           // key `${type}-${id}` -> item
   view: 'home',
   detailKey: null,
@@ -516,6 +537,7 @@ async function loadState(){
   try{
     const s = await storageGet('settings');
     if(s) state.settings = JSON.parse(s);
+    if(!('spoilerWarning' in state.settings)) state.settings['spoilerWarning'] = true;
   }catch(e){ /* no settings yet */ }
   // Keys are baked into the file (see CONFIG at top) — always use those, ignoring
   // anything a previous version of the app may have saved to this device.
@@ -1779,7 +1801,17 @@ function renderEpisodeModal(){
           <div class="punch-row">${Array.from({length:10},(_,i)=>`<button class="punch ${epRating>i?'on':''}" data-punch="${i+1}"></button>`).join('')}</div>
           <span class="punch-num">${epRating? epRating+'/10':'—'}</span>
         </div>
-        <p class="modal-overview">${escapeHtml(ep.overview || 'No description available.')}</p>
+        ${
+          state.settings.spoilerWarning
+            ? `<div class="spoiler-wrap" id="spoiler-wrap">
+                <div class="spoiler-overlay" id="spoiler-overlay">
+                  ${ic.spoiler}
+                  <span>The description may contain spoilers.</span>
+                  <span class="spoiler-sub">Tap to uncover.</span>
+                </div>
+              </div>`
+            : `<p class="modal-overview">${escapeHtml(ep.overview || 'No description available.')}</p>`
+        }
       </div>
     </div>`;
   document.body.appendChild(overlay);
@@ -1788,6 +1820,13 @@ function renderEpisodeModal(){
   overlay.querySelectorAll('[data-punch]').forEach(el=>{
     el.addEventListener('click', ()=>setEpisodeRating(state.detailKey, sn, en, Number(el.getAttribute('data-punch'))));
   });
+  const spoilerOverlay = overlay.querySelector('#spoiler-overlay');
+  if(spoilerOverlay){
+    spoilerOverlay.addEventListener('click', ()=>{
+      document.getElementById('spoiler-wrap').outerHTML =
+        `<p class="modal-overview">${escapeHtml(ep.overview || 'No description available.')}</p>`;
+    });
+  }
 }
 document.addEventListener('keydown', (e)=>{ if(e.key==='Escape') closeEpisodeModal(); });
 
@@ -1884,6 +1923,12 @@ function renderSettings(){
     </div>
 
     <div class="settings-card">
+      <h3>Spoiler Warnings</h3>
+      <p>Show spoiler warning on episode descriptions.</p>
+      <button class="big-toggle ${state.settings.spoilerWarning ? 'on' : 'off'}" id="spoiler-toggle-btn">${state.settings.spoilerWarning ? 'On' : 'Off'}</button>
+    </div>
+
+    <div class="settings-card">
       <h3>Danger zone</h3>
       <p>This clears every title, status and rating you've tracked. This can't be undone.</p>
       <button class="btn danger" id="clear-all">Clear all library data</button>
@@ -1923,6 +1968,11 @@ function bindSettings(){
       toast('Library cleared');
       render();
     }
+  });
+  document.getElementById('spoiler-toggle-btn').addEventListener('click', async ()=>{
+    state.settings.spoilerWarning = !state.settings.spoilerWarning;
+    await saveSettings();
+    render(); 
   });
 }
 
