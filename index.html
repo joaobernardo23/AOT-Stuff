@@ -1787,7 +1787,7 @@ function bindEpisodeRows(libItem, scope){
 /* ===================== EPISODE MODAL ===================== */
 async function openEpisodeModal(sn, en){
   sn = Number(sn); en = Number(en);
-  state.episodeModal = {sn, en};
+  state.episodeModal = {sn, en, spoilerWarningPresent: state.settings.spoilerWarning};
   renderEpisodeModal();
   const libItem = state.library[state.detailKey];
   if(state.settings.omdbKey && libItem){
@@ -1804,7 +1804,7 @@ function closeEpisodeModal(){
   if(el) el.remove();
 }
 function renderEpisodeModal(){
-  const {sn, en} = state.episodeModal;
+  const {sn, en, spoilerWarningPresent} = state.episodeModal;
   const libItem = state.library[state.detailKey];
   if(!libItem) return;
   const seasonMeta = libItem.episodesMeta && libItem.episodesMeta[sn];
@@ -1857,7 +1857,7 @@ function renderEpisodeModal(){
           <span class="punch-num">${epRating? epRating+'/10':'—'}</span>
         </div>
         ${
-          state.settings.spoilerWarning
+          state.settings.spoilerWarning && spoilerWarningPresent
             ? `<div class="spoiler-wrap" id="spoiler-wrap">
                 <div class="spoiler-overlay" id="spoiler-overlay">
                   ${ic.spoiler}
@@ -1880,6 +1880,7 @@ function renderEpisodeModal(){
     spoilerOverlay.addEventListener('click', ()=>{
       document.getElementById('spoiler-wrap').outerHTML =
         `<p class="modal-overview">${escapeHtml(ep.overview || 'No description available.')}</p>`;
+      state.episodeModal.spoilerWarningPresent = false;
     });
   }
 }
