@@ -236,6 +236,30 @@ a{color:var(--gold);}
 .genre-pills{display:flex; flex-wrap:wrap; gap:6px; margin:10px 0;}
 .genre-pill{font-size:11px; background:var(--surface-2); border:1px solid var(--line); color:var(--text-dim); padding:3px 9px; border-radius:999px;}
 
+/* ---------- where to watch ---------- */
+.watch-providers{margin:16px 0 6px; max-width:60ch;}
+.wp-head{font-family:var(--font-display); font-size:13px; letter-spacing:.5px; text-transform:uppercase; color:var(--text-dim); margin-bottom:10px; display:flex; align-items:center; gap:8px;}
+.wp-region{font-family:var(--font-mono); font-size:10px; color:var(--text-faint); background:var(--surface-2); border:1px solid var(--line); border-radius:5px; padding:1px 6px; text-transform:none; letter-spacing:0;}
+.wp-group{margin-bottom:10px;}
+.wp-group-label{display:block; font-size:11px; color:var(--text-faint); text-transform:uppercase; letter-spacing:.05em; margin-bottom:6px;}
+.wp-logos{display:flex; flex-wrap:wrap; gap:8px;}
+.wp-provider{width:42px; height:42px; border-radius:9px; overflow:hidden; background:var(--surface-2); border:1px solid var(--line); flex:none;}
+.wp-provider img{width:100%; height:100%; object-fit:cover; display:block;}
+.wp-empty{font-size:12px; color:var(--text-faint);}
+.wp-link{display:inline-block; margin-top:2px; font-size:11px; font-weight:600; color:var(--gold);}
+.wp-link:hover{text-decoration:underline;}
+
+.region-select{
+  background-color:var(--surface-2); color:var(--text); border:1px solid var(--line); border-radius:8px;
+  padding:8px 26px 8px 10px; font-size:13px; font-family:inherit; width:auto; max-width:280px;
+  appearance:none; -webkit-appearance:none;
+  background-image:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%23a9a5b8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>');
+  background-repeat:no-repeat;
+  background-position:right 8px center;
+  background-size:11px;
+}
+.region-select:focus{outline:1px solid var(--gold-dim);}
+
 .status-row{display:flex; flex-wrap:wrap; gap:6px; margin:14px 0;}
 .status-btn{
   background:var(--surface); border:1px solid var(--line); color:var(--text-dim);
@@ -528,6 +552,44 @@ const BUILT_IN_OMDB_KEY = 'cc9634ae';   // optional — leave as-is to skip IMDb
 const IMG = (path, size='w342') => path ? `https://image.tmdb.org/t/p/${size}${path}` : '';
 const TMDB = 'https://api.themoviedb.org/3';
 
+// Countries TMDB has watch-provider data for (a practical subset of ISO 3166-1).
+// Used to populate the region picker in Settings and to pick which country's
+// "Where to Watch" info to show on a title's detail page.
+const REGIONS = [
+  {code:'US', name:'United States'}, {code:'GB', name:'United Kingdom'}, {code:'CA', name:'Canada'},
+  {code:'AU', name:'Australia'}, {code:'NZ', name:'New Zealand'}, {code:'IE', name:'Ireland'},
+  {code:'PT', name:'Portugal'}, {code:'ES', name:'Spain'}, {code:'FR', name:'France'},
+  {code:'DE', name:'Germany'}, {code:'IT', name:'Italy'}, {code:'NL', name:'Netherlands'},
+  {code:'BE', name:'Belgium'}, {code:'LU', name:'Luxembourg'}, {code:'CH', name:'Switzerland'},
+  {code:'AT', name:'Austria'}, {code:'SE', name:'Sweden'}, {code:'NO', name:'Norway'},
+  {code:'DK', name:'Denmark'}, {code:'FI', name:'Finland'}, {code:'IS', name:'Iceland'},
+  {code:'PL', name:'Poland'}, {code:'CZ', name:'Czech Republic'}, {code:'GR', name:'Greece'},
+  {code:'RO', name:'Romania'}, {code:'HU', name:'Hungary'}, {code:'TR', name:'Turkey'},
+  {code:'RU', name:'Russia'}, {code:'UA', name:'Ukraine'},
+  {code:'BR', name:'Brazil'}, {code:'MX', name:'Mexico'}, {code:'AR', name:'Argentina'},
+  {code:'CL', name:'Chile'}, {code:'CO', name:'Colombia'}, {code:'PE', name:'Peru'},
+  {code:'JP', name:'Japan'}, {code:'KR', name:'South Korea'}, {code:'CN', name:'China'},
+  {code:'IN', name:'India'}, {code:'ID', name:'Indonesia'}, {code:'MY', name:'Malaysia'},
+  {code:'SG', name:'Singapore'}, {code:'PH', name:'Philippines'}, {code:'TH', name:'Thailand'},
+  {code:'VN', name:'Vietnam'}, {code:'TW', name:'Taiwan'}, {code:'HK', name:'Hong Kong'},
+  {code:'ZA', name:'South Africa'}, {code:'NG', name:'Nigeria'}, {code:'EG', name:'Egypt'},
+  {code:'AE', name:'United Arab Emirates'}, {code:'SA', name:'Saudi Arabia'}, {code:'IL', name:'Israel'},
+];
+
+// Best-effort guess at the person's country from their browser locale (e.g. "en-US" -> "US"),
+// falling back to the US. Only used to pick a sensible default — the person can change it
+// any time in Settings.
+function guessRegion(){
+  try{
+    const locales = (navigator.languages && navigator.languages.length) ? navigator.languages : [navigator.language || 'en-US'];
+    for(const loc of locales){
+      const parts = String(loc).split('-');
+      if(parts[1] && parts[1].length===2) return parts[1].toUpperCase();
+    }
+  }catch(e){ /* ignore */ }
+  return 'US';
+}
+
 /* ===================== ICONS ===================== */
 const ic = {
   home: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>`,
@@ -544,7 +606,7 @@ const ic = {
 
 /* ===================== STATE ===================== */
 let state = {
-  settings: { tmdbKey: BUILT_IN_TMDB_KEY, omdbKey: BUILT_IN_OMDB_KEY, spoilerWarning: true },
+  settings: { tmdbKey: BUILT_IN_TMDB_KEY, omdbKey: BUILT_IN_OMDB_KEY, spoilerWarning: true, region: guessRegion() },
   library: {},           // key `${type}-${id}` -> item
   view: 'home',
   detailKey: null,
@@ -593,6 +655,7 @@ async function loadState(){
     const s = await storageGet('settings');
     if(s) state.settings = JSON.parse(s);
     if(!('spoilerWarning' in state.settings)) state.settings['spoilerWarning'] = true;
+    if(!('region' in state.settings) || !state.settings.region) state.settings['region'] = guessRegion();
   }catch(e){ /* no settings yet */ }
   // Keys are baked into the file (see CONFIG at top) — always use those, ignoring
   // anything a previous version of the app may have saved to this device.
@@ -643,6 +706,7 @@ const getTvDetails = (id) => tmdbFetch(`/tv/${id}`);
 const getMovieDetails = (id) => tmdbFetch(`/movie/${id}`);
 const getSeasonDetails = (id, sn) => tmdbFetch(`/tv/${id}/season/${sn}`);
 const getTvExternalIds = (id) => tmdbFetch(`/tv/${id}/external_ids`);
+const getWatchProviders = (type, id) => tmdbFetch(`/${type}/${id}/watch/providers`);
 
 /* ===================== OMDb API (optional — IMDb ratings) ===================== */
 // OMDb is a free community wrapper around IMDb data (omdbapi.com). It's entirely optional:
@@ -1512,7 +1576,10 @@ async function loadDetail(){
   const libItem = state.library[state.detailKey];
   try{
     if(type==='tv'){
-      const d = await getTvDetails(id);
+      const [d, providers] = await Promise.all([
+        getTvDetails(id),
+        getWatchProviders('tv', id).catch(()=>null)
+      ]);
       if(libItem){
         libItem.seasonsMeta = (d.seasons||[]).map(s=>({season_number:s.season_number, episode_count:s.episode_count, name:s.name, air_date:s.air_date}));
         libItem.nextEpisodeToAir = d.next_episode_to_air || null;
@@ -1523,9 +1590,12 @@ async function loadDetail(){
         autoUpdateStatus(state.detailKey);
         saveLibrary();
       }
-      renderTvDetail(d, libItem);
+      renderTvDetail(d, libItem, providers);
     } else {
-      const d = await getMovieDetails(id);
+      const [d, providers] = await Promise.all([
+        getMovieDetails(id),
+        getWatchProviders('movie', id).catch(()=>null)
+      ]);
       if(libItem){
         if(d.runtime){
           libItem.runtime = d.runtime;
@@ -1536,14 +1606,68 @@ async function loadDetail(){
         }
         saveLibrary();
       }
-      renderMovieDetail(d, libItem);
+      renderMovieDetail(d, libItem, providers);
     }
   }catch(e){
     document.getElementById('content').innerHTML = `<button class="back-btn" id="back-btn">${ic.back} Back</button><div class="empty"><strong>Couldn't load details</strong>${e.message==='bad-key'?'Check your TMDB API key in Settings.':'Please try again.'}</div>`;
     document.getElementById('back-btn').addEventListener('click', ()=>{ state.view='library'; render(false); });
   }
 }
-function renderTvDetail(d, libItem){
+// Renders the "Where to Watch" block for the person's chosen region, from a TMDB
+// /watch/providers response. TMDB's data comes from JustWatch, grouped per-country into
+// flatrate (subscription streaming), ads (free w/ ads), free, rent, and buy.
+function renderWatchProviders(providersData, region){
+  const results = (providersData && providersData.results) || {};
+  const entry = results[region];
+  const regionName = (REGIONS.find(r=>r.code===region)||{}).name || region;
+  if(!entry){
+    return `
+      <div class="watch-providers">
+        <div class="wp-head">Where to Watch <span class="wp-region">${escapeHtml(region)}</span></div>
+        <div class="wp-empty">No streaming info available for ${escapeHtml(regionName)}. You can change your region in Settings.</div>
+      </div>
+    `;
+  }
+  const groups = [
+    {key:'flatrate', label:'Stream'},
+    {key:'ads', label:'Free with Ads'},
+    {key:'free', label:'Free'},
+    {key:'rent', label:'Rent'},
+    {key:'buy', label:'Buy'},
+  ];
+  let body = '';
+  groups.forEach(g=>{
+    const list = entry[g.key];
+    if(list && list.length){
+      const logos = list.slice().sort((a,b)=>(a.display_priority||0)-(b.display_priority||0))
+        .map(p=>`<div class="wp-provider" title="${escapeHtml(p.provider_name)}"><img src="${IMG(p.logo_path,'w92')}" alt="${escapeHtml(p.provider_name)}" loading="lazy"></div>`)
+        .join('');
+      body += `<div class="wp-group"><span class="wp-group-label">${g.label}</span><div class="wp-logos">${logos}</div></div>`;
+    }
+  });
+  if(!body){
+    return `
+      <div class="watch-providers">
+        <div class="wp-head">Where to Watch <span class="wp-region">${escapeHtml(region)}</span></div>
+        <div class="wp-empty">Not currently available to stream, rent, or buy in ${escapeHtml(regionName)}.</div>
+      </div>
+    `;
+  }
+  return `
+    <div class="watch-providers">
+      <div class="wp-head">Where to Watch <span class="wp-region">${escapeHtml(region)}</span></div>
+      ${body}
+    </div>
+  `;
+  /*return `
+    <div class="watch-providers">
+      <div class="wp-head">Where to Watch <span class="wp-region">${escapeHtml(region)}</span></div>
+      ${body}
+      ${entry.link ? `<a href="${entry.link}" target="_blank" rel="noopener noreferrer" class="wp-link">View all options on TMDB →</a>` : ''}
+    </div>
+  `;*/
+}
+function renderTvDetail(d, libItem, providers){
   const statuses = ['plan_to_watch','watching','on_hold','up_to_date','completed','dropped'];
   const seasons = (d.seasons||[]).filter(s=>s.episode_count>0);
   const prog = libItem ? computeTvProgress({...libItem, seasonsMeta: seasons.map(s=>({season_number:s.season_number, episode_count:s.episode_count}))}) : null;
@@ -1557,6 +1681,7 @@ function renderTvDetail(d, libItem){
         <div class="detail-meta">${(d.first_air_date||'').slice(0,4) || '—'} · ${d.number_of_seasons||0} season${d.number_of_seasons===1?'':'s'} · ${d.status}</div>
         <div class="genre-pills">${(d.genres||[]).map(g=>`<span class="genre-pill">${escapeHtml(g.name)}</span>`).join('')}</div>
         <div class="detail-overview">${escapeHtml(d.overview||'No overview available.')}</div>
+        ${renderWatchProviders(providers, state.settings.region)}
 
         <div class="status-row">
           ${libItem ? statuses.map(s=>`<button class="status-btn ${libItem.status===s?'active':''}" data-status="${s}">${libStatusLabel(s)}</button>`).join('')
@@ -1886,7 +2011,7 @@ function renderEpisodeModal(){
 }
 document.addEventListener('keydown', (e)=>{ if(e.key==='Escape') closeEpisodeModal(); });
 
-function renderMovieDetail(d, libItem){
+function renderMovieDetail(d, libItem, providers){
   const html = `
     <button class="back-btn" id="back-btn">${ic.back} Back</button>
     <div class="detail-hero">
@@ -1896,6 +2021,7 @@ function renderMovieDetail(d, libItem){
         <div class="detail-meta">${(d.release_date||'').slice(0,4)||'—'} · ${d.runtime? d.runtime+' min':'—'}</div>
         <div class="genre-pills">${(d.genres||[]).map(g=>`<span class="genre-pill">${escapeHtml(g.name)}</span>`).join('')}</div>
         <div class="detail-overview">${escapeHtml(d.overview||'No overview available.')}</div>
+        ${renderWatchProviders(providers, state.settings.region)}
 
         ${libItem ? `
         <div class="movie-actions">
@@ -1988,6 +2114,14 @@ function renderSettings(){
     </div>
 
     <div class="settings-card">
+      <h3>Streaming Region</h3>
+      <p>Select your location to show the correct streaming options available.</p>
+      <select id="settings-region" class="region-select">
+        ${REGIONS.map(r=>`<option value="${r.code}" ${state.settings.region===r.code?'selected':''}>${escapeHtml(r.name)}</option>`).join('')}
+      </select>
+    </div>
+
+    <div class="settings-card">
       <h3>Danger zone</h3>
       <p>This clears every title, status and rating you've tracked. This can't be undone.</p>
       <button class="btn danger" id="clear-all">Clear all library data</button>
@@ -2033,6 +2167,11 @@ function bindSettings(){
     state.settings.spoilerWarning = isChecked;
     await saveSettings();
     //render(); 
+  });
+  document.getElementById('settings-region').addEventListener('change', async (event)=>{
+    state.settings.region = event.target.value;
+    await saveSettings();
+    toast('Streaming region updated');
   });
 }
 
