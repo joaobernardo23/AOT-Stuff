@@ -906,7 +906,7 @@ function daysUntil(dateStr){
 function getEpisodeRuntime(item, seasonNumber, episodeNumber){
   const season = item.episodesMeta?.[seasonNumber];
   const episode = season?.find(
-    e => e.episode_number === episodeNumber
+    e => Number(e.episode_number) === Number(episodeNumber)
   );
 
   // Prefer the episode's own runtime
@@ -968,6 +968,7 @@ function addToLibrary(tmdbItem, type, initialStatus){
   if(type==='tv'){
     item.watched = {};
     item.rewatches = {};       // { seasonNumber: { episodeNumber: extraWatchCount } }
+    item.seasonRewatchCounts = {}; // { seasonNumber: number of times "Rewatch Season" was logged }
     item.episodeRatings = {}
     item.seasonsMeta = [];
     item.episodeRuntime = null;
@@ -1069,13 +1070,31 @@ function unlogEpisodeRewatch(k, sn, en){
   if(it.rewatches[sn][en] <= 0) delete it.rewatches[sn][en];
   saveLibrary(); render();
 }
+// The number of times a season has been rewatched isn't tracked as its own field on
+// older/already-saved library items — it can only be inferred from the per-episode
+// rewatch counts that "Rewatch Season" (and individual episode rewatches) have been
+// writing into it.rewatches all along. So: prefer the explicit counter when we have
+// one, and otherwise derive it from the current data so existing rewatch history isn't
+// lost or shown as zero just because the counter field didn't exist yet when it was
+// logged. The season as a whole has only been fully rewatched as many times as its
+// least-rewatched currently-watched episode.
+function getSeasonRewatchCount(it, sn){
+  if(it.seasonRewatchCounts && it.seasonRewatchCounts[sn] != null) return it.seasonRewatchCounts[sn];
+  const watchedArr = (it.watched && it.watched[sn]) || [];
+  if(!watchedArr.length) return 0;
+  const seasonRewatches = (it.rewatches && it.rewatches[sn]) || {};
+  return Math.min(...watchedArr.map(en => seasonRewatches[en] || 0));
+}
 function logSeasonRewatch(k, sn){
   const it = state.library[k]; if(!it) return;
   const watchedArr = it.watched[sn] || [];
   if(!watchedArr.length) return; // nothing watched in this season yet
+  const baseline = getSeasonRewatchCount(it, sn); // backfills from legacy per-episode data if this season's never had an explicit counter
   it.rewatches = it.rewatches || {};
   it.rewatches[sn] = it.rewatches[sn] || {};
   watchedArr.forEach(en=>{ it.rewatches[sn][en] = (it.rewatches[sn][en]||0) + 1; });
+  it.seasonRewatchCounts = it.seasonRewatchCounts || {};
+  it.seasonRewatchCounts[sn] = baseline + 1;
   saveLibrary(); render();
 }
 function unlogSeasonRewatch(k, sn){
@@ -1085,6 +1104,10 @@ function unlogSeasonRewatch(k, sn){
     if(it.rewatches[sn][en] <= 0) delete it.rewatches[sn][en];
   });
   if(Object.keys(it.rewatches[sn]).length===0) delete it.rewatches[sn];
+  if(it.seasonRewatchCounts && it.seasonRewatchCounts[sn] != null){
+    it.seasonRewatchCounts[sn] = Math.max(0, it.seasonRewatchCounts[sn] - 1);
+    if(it.seasonRewatchCounts[sn] === 0) delete it.seasonRewatchCounts[sn];
+  }
   saveLibrary(); render();
 }
 function logMovieRewatch(k){
@@ -1116,6 +1139,7 @@ function markSeasonWatched(k, sn, episodeCount, allWatched){
   if(allWatched){
     it.watched[sn] = [];
     if(it.rewatches) delete it.rewatches[sn]; // no episodes watched anymore, so no rewatches either
+    if(it.seasonRewatchCounts) delete it.seasonRewatchCounts[sn];
   } else {
     const meta = it.episodesMeta && it.episodesMeta[sn];
     if(meta && meta.length){
@@ -1727,8 +1751,8 @@ function seasonBlock(s, libItem){
   const open = !!state.openSeasons[s.season_number];
   const airedCount = airedCountFor(libItem, s.season_number, s.episode_count);
   const allWatched = airedCount>0 && watchedArr.length >= airedCount;
-  const seasonRewatches = (libItem.rewatches && libItem.rewatches[s.season_number]) || {};
-  const hasRewatch = Object.values(seasonRewatches).some(n=>n>0);
+  const seasonRewatchCount = getSeasonRewatchCount(libItem, s.season_number);
+  const hasRewatch = seasonRewatchCount > 0;
   return `
   <div class="season ${open?'open':''}" data-season="${s.season_number}">
     <div class="season-head" data-toggle-season="${s.season_number}">
@@ -1739,7 +1763,7 @@ function seasonBlock(s, libItem){
       </div>
       <div class="season-actions">
         <button class="mini-btn" data-mark-season="${s.season_number}" data-count="${airedCount}" data-all="${allWatched?1:0}">${allWatched?'Unmark all':'Mark all watched'}</button>
-        ${allWatched ? `<button class="rewatch-btn ${hasRewatch?'has-count':''}" data-season-rewatch="${s.season_number}" title="Log a rewatch for this whole season">${ic.rewatch}</button>` : ''}
+        ${allWatched ? `<button class="rewatch-btn ${hasRewatch?'has-count':''}" data-season-rewatch="${s.season_number}" title="Log a rewatch for this whole season">${ic.rewatch}${hasRewatch? '×'+seasonRewatchCount : ''}</button>` : ''}
         ${hasRewatch ? `<button class="rewatch-undo" data-season-rewatch-undo="${s.season_number}" title="Remove one rewatch from this season">−</button>` : ''}
       </div>
     </div>
@@ -1777,7 +1801,7 @@ function bindTvDetail(libItem, tmdbData){
   if(rtInput) rtInput.addEventListener('change', ()=>setEpisodeRuntime(state.detailKey, rtInput.value));
   document.querySelectorAll('[data-toggle-season]').forEach(el=>{
     el.addEventListener('click', ()=>{
-      const sn = el.getAttribute('data-toggle-season');
+      const sn = Number(el.getAttribute('data-toggle-season'));
       state.openSeasons[sn] = !state.openSeasons[sn];
       const block = document.querySelector(`.season[data-season="${sn}"]`);
       block.classList.toggle('open');
@@ -1792,7 +1816,7 @@ function bindTvDetail(libItem, tmdbData){
   document.querySelectorAll('[data-mark-season]').forEach(el=>{
     el.addEventListener('click', (e)=>{
       e.stopPropagation();
-      const sn = el.getAttribute('data-mark-season');
+      const sn = Number(el.getAttribute('data-mark-season'));
       const count = Number(el.getAttribute('data-count'));
       const all = el.getAttribute('data-all')==='1';
       markSeasonWatched(state.detailKey, sn, count, all);
@@ -1801,7 +1825,7 @@ function bindTvDetail(libItem, tmdbData){
   document.querySelectorAll('[data-season-rewatch]').forEach(el=>{
     el.addEventListener('click', (e)=>{
       e.stopPropagation();
-      const sn = el.getAttribute('data-season-rewatch');
+      const sn = Number(el.getAttribute('data-season-rewatch'));
       logSeasonRewatch(state.detailKey, sn);
       toast('Season rewatch logged');
     });
@@ -1809,7 +1833,7 @@ function bindTvDetail(libItem, tmdbData){
   document.querySelectorAll('[data-season-rewatch-undo]').forEach(el=>{
     el.addEventListener('click', (e)=>{
       e.stopPropagation();
-      const sn = el.getAttribute('data-season-rewatch-undo');
+      const sn = Number(el.getAttribute('data-season-rewatch-undo'));
       unlogSeasonRewatch(state.detailKey, sn);
       toast('Removed one season rewatch');
     });
